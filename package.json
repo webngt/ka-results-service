@@ -1,0 +1,14 @@
+{
+  "name": "ka-results-service",
+  "version": "0.0.1",
+  "description": "Store exercise results and reporting",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "katacoda"
+  ],
+  "author": "Alexander Rozhdestvensky",
+  "license": "MIT"
+}
