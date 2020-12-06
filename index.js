@@ -1,12 +1,34 @@
 const stringify = require('csv-stringify');
+const fetch = require('node-fetch');
+const fs = require('fs');
+
 const express = require('express');
 const app = express();
-const { catchErrors, gracefulShutdown } = require("@banzaicloud/service-tools");
 
-catchErrors();
-gracefulShutdown();
+
+const jwktopem = require('jwk-to-pem');
+const jwt = require('jsonwebtoken');
+
+const config = JSON.parse(fs.readFileSync('config/config.json'));
+
+// cloud native healthchecks
+const health = require('@cloudnative/health-connect');
+let healthcheck = new health.HealthChecker();
+
+const shutdownPromise = () => new Promise(function (resolve, _reject) {
+    setTimeout(function () {
+      console.log('DONE!');
+      resolve();
+    }, 10);
+  });
+let shutdownCheck = new health.ShutdownCheck("shutdownCheck", shutdownPromise);
+
+healthcheck.registerShutdownCheck(shutdownCheck);
+app.use('/live', health.LivenessEndpoint(healthcheck));
+app.use('/ready', health.ReadinessEndpoint(healthcheck));
 
 app.use(express.json());
+
 
 // simple in memory storage
 // const example = {
@@ -35,7 +57,7 @@ async function table_to_csv(table) {
 }
 
 async function csv() {
-    const table = [];
+    const table = [['timestamp', 'user_id', 'task_id', 'status']];
     storage.forEach(item => table.push([
         item.timestamp, 
         item.user_id, 
@@ -51,19 +73,64 @@ function save(user_id, data) {
     storage.push({user_id, timestamp, data});
 }
 
-app.post('/save', function (req, res) {
-    const user = 'test_user';
-    save(user, req.body);
+
+async function authorize(req) {
+    const auth = req.get('Authorization');
+    if (auth === undefined) {
+        console.log('authorization falied: no Authorization header set');
+        return {
+            statusCode: 401
+        };
+    } 
+    const parts = auth.split(" ");
+    if (parts.length != 2) {
+        console.log(`authorization falied: parts=${parts}`);
+        return {
+            statusCode: 401
+        };
+    }
+    try {
+        const response = await fetch(config.checklistIss);
+        const jwks = await response.json();
+        const [ firstKey ] = jwks.keys;
+        const publicKey = jwktopem(firstKey)
+
+        const decoded = jwt.verify(parts[1], publicKey);
+        return {
+            decoded,
+            statusCode: 200
+        };
+    } catch (err) {
+        console.log(`authorization falied: ${err}`);
+        return {
+            statusCode: 401
+        };
+    }    
+}
+
+app.post('/save', async function (req, res) {
+    const auth = await authorize(req);
+    if (auth.statusCode !== 200) {
+        res.status(auth.statusCode).end();
+        return;
+    }
+    save(auth.decoded.sub, req.body);
     res.end();
 });
+
 
 app.get('/report', async function (req, res) {
     res.set('Content-Type', 'text/plain');
     res.send(await csv());
+    res.end();
 });
 
-app.listen(3000);    
 
-//(async () => {
-//
-//})();
+async function checkDB() {
+    throw new Error('not implemented');
+}
+
+// each check returns a Promise
+
+
+app.listen(3000);    
