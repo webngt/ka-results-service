@@ -10,5 +10,10 @@
     "katacoda"
   ],
   "author": "Alexander Rozhdestvensky",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@banzaicloud/service-tools": "^4.0.4",
+    "csv-stringify": "^5.5.3",
+    "express": "^4.17.1"
+  }
 }
