@@ -1,19 +1,20 @@
 const stringify = require('csv-stringify');
-const fetch = require('node-fetch');
 const fs = require('fs');
 const { Sequelize, DataTypes } = require('sequelize');
+const jose = require('node-jose');
 
 const express = require('express');
 const app = express();
 
+process.on('unhandledRejection', error => {
+    console.error('unhandledRejection', error);
+    process.exit(1);
+  });
 
-const jwktopem = require('jwk-to-pem');
-const jwt = require('jsonwebtoken');
+const db_config = JSON.parse(fs.readFileSync('secrets/db.json'));
+const ks_config = JSON.parse(fs.readFileSync('secrets/keys.json'));
 
-const config = JSON.parse(fs.readFileSync('config/config.json'));
-const secrets = JSON.parse(fs.readFileSync('secrets/secrets.json'));
-
-const sequelize = new Sequelize(secrets.db_url);
+const sequelize = new Sequelize(db_config.db_url);
 
 // cloud native healthchecks
 const health = require('@cloudnative/health-connect');
@@ -104,7 +105,7 @@ async function save(user_id, data) {
 }
 
 
-async function authorize(req) {
+async function authorize(req, keystore) {
     const auth = req.get('Authorization');
     if (auth === undefined) {
         console.log('authorization falied: no Authorization header set');
@@ -120,12 +121,23 @@ async function authorize(req) {
         };
     }
     try {
-        const response = await fetch(config.checklistIss);
-        const jwks = await response.json();
-        const [ firstKey ] = jwks.keys;
-        const publicKey = jwktopem(firstKey)
+        const decoded = JSON.parse((await jose.JWE.createDecrypt(keystore).decrypt(parts[1])).payload.toString());
+        const now = Math.floor(Date.now() / 1000);
 
-        const decoded = jwt.verify(parts[1], publicKey);
+        if (decoded.exp === undefined) {
+            console.log('decoded.exp is undefined');
+            return {
+                statusCode: 401
+            };            
+        }
+
+        if (decoded.exp < now) {
+            console.log(`token exppired for: ${decoded.sub}`);
+            return {
+                statusCode: 401
+            };            
+        }
+
         return {
             decoded,
             statusCode: 200
@@ -135,34 +147,40 @@ async function authorize(req) {
         return {
             statusCode: 401
         };
-    }    
+    } 
 }
 
-app.post('/save', async function (req, res) {
-    try {
-        const auth = await authorize(req);
-        if (auth.statusCode !== 200) {
-            res.status(auth.statusCode).end();
-            return;
+(async () => {
+
+    const keystore = await jose.JWK.asKeyStore(JSON.stringify(ks_config));
+
+    app.post('/save', async function (req, res) {
+        try {
+            const auth = await authorize(req, keystore);
+            if (auth.statusCode !== 200) {
+                res.status(auth.statusCode).end();
+                return;
+            }
+            save(auth.decoded.sub, req.body);
+            res.end();
+        } catch (err) {
+            console.error(err);
+            res.status(503).end();
         }
-        save(auth.decoded.sub, req.body);
-        res.end();
-    } catch (err) {
-        console.error(err);
-        res.status(503).end();
-    }
-});
+    });
 
 
-app.get('/report', async function (req, res) {
-    try {
-        res.set('Content-Type', 'text/plain');
-        res.send(await csv());
-        res.end();
-    } catch (err) {
-        console.error(err);
-        res.status(503).end();
-    }
-});
+    app.get('/report', async function (req, res) {
+        try {
+            res.set('Content-Type', 'text/plain');
+            res.send(await csv());
+            res.end();
+        } catch (err) {
+            console.error(err);
+            res.status(503).end();
+        }
+    });
 
-app.listen(3000);    
+    app.listen(3000);   
+
+})();
