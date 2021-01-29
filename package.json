@@ -1,6 +1,6 @@
 {
   "name": "ka-results-service",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Store exercise results and reporting",
   "main": "index.js",
   "scripts": {
@@ -17,7 +17,6 @@
   "license": "MIT",
   "dependencies": {
     "@cloudnative/health-connect": "^2.1.0",
-    "csv-stringify": "^5.5.3",
     "express": "^4.17.1",
     "node-jose": "^2.0.0",
     "pg": "^8.5.1",

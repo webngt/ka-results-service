@@ -1,4 +1,3 @@
-const stringify = require('csv-stringify');
 const fs = require('fs');
 const { Sequelize, DataTypes } = require('sequelize');
 const jose = require('node-jose');
@@ -70,37 +69,6 @@ app.use('/live', health.LivenessEndpoint(healthcheck));
 app.use('/ready', health.ReadinessEndpoint(healthcheck));
 
 app.use(express.json());
-
-async function table_to_csv(table) {
-    return new Promise((resolve, reject) => {
-        stringify(table, function(err, output){
-            if (err !== undefined && err !== null) {
-                reject(err);
-            } else {
-                resolve(output);
-            }
-        });
-    });
-}
-
-async function csv() {
-    const table = [['timestamp', 'user_id', 'task_id', 'status']];
-    await Result.sync();
-    const results = await Result.findAll();
-    results.every(item => {
-        if (item.data !== undefined &&  
-            item.data.deny !== undefined) {
-            table.push([
-                item.createdAt, 
-                item.user_id, 
-                item.data.task_id, 
-                item.data.deny.length == 0 ? 'OK' : 'FAIL']
-            );
-        }
-    });
-
-    return await table_to_csv(table);
-}
 
 async function save(user_id, data) {
     console.log(data.task_id);
@@ -176,8 +144,12 @@ async function authorize(req, keystore) {
 
     app.get('/report', async function (req, res) {
         try {
-            res.set('Content-Type', 'text/plain');
-            res.send(await csv());
+            res.set('Content-Type', 'application/json');
+            const items = [];
+            await Result.sync();
+            const results = await Result.findAll();
+            results.every(item => items.push(item));
+            res.send(JSON.stringify(items));
             res.end();
         } catch (err) {
             console.error(err);
