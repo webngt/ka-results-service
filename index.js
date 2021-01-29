@@ -88,16 +88,15 @@ async function csv() {
     await Result.sync();
     const results = await Result.findAll();
     results.every(item => {
-        if (item.data === undefined ||  
-            item.data.deny === undefined) {
-            return;
+        if (item.data !== undefined &&  
+            item.data.deny !== undefined) {
+            table.push([
+                item.createdAt, 
+                item.user_id, 
+                item.data.task_id, 
+                item.data.deny.length == 0 ? 'OK' : 'FAIL']
+            );
         }
-        table.push([
-            item.createdAt, 
-            item.user_id, 
-            item.data.task_id, 
-            item.data.deny.length == 0 ? 'OK' : 'FAIL']
-        );
     });
 
     return await table_to_csv(table);
