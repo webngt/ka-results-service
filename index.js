@@ -88,9 +88,7 @@ async function csv() {
     await Result.sync();
     const results = await Result.findAll();
     results.every(item => {
-        if (item.createdAt === undefined ||
-            item.user_id === undefined ||
-            item.data === undefined ||  
+        if (item.data === undefined ||  
             item.data.deny === undefined) {
             return;
         }
@@ -109,8 +107,6 @@ async function save(user_id, data) {
     console.log(data.task_id);
     await Result.sync();
     await Result.create({ user_id, data});
-
-    //storage.push({user_id, timestamp, data});
 }
 
 
@@ -170,7 +166,7 @@ async function authorize(req, keystore) {
                 res.status(auth.statusCode).end();
                 return;
             }
-            save(auth.decoded.sub, req.body);
+            await save(auth.decoded.sub, req.body);
             res.end();
         } catch (err) {
             console.error(err);
