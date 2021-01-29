@@ -1,6 +1,6 @@
 {
   "name": "ka-results-service",
-  "version": "0.0.12",
+  "version": "0.0.14",
   "description": "Store exercise results and reporting",
   "main": "index.js",
   "scripts": {
