@@ -75,7 +75,7 @@ app.use(express.json());
 async function save(user_id, data) {
     console.log(data.task_id);
     await Result.sync();
-    await Result.create({ user_id, key, data});
+    await Result.create({ user_id, data});
 }
 
 
