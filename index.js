@@ -25,10 +25,6 @@ const Result = sequelize.define('Result', {
       type: DataTypes.STRING,
       allowNull: false
     },
-    key: {
-        type: DataTypes.STRING,
-        allowNull: true
-    },
   
     data: {
       type: DataTypes.JSON,
@@ -39,6 +35,7 @@ const Result = sequelize.define('Result', {
   }, {
     // Other model options go here
 });
+
 
 const dbPromise = () => new Promise(async function (resolve, _reject) {
     try {
@@ -75,7 +72,7 @@ app.use('/ready', health.ReadinessEndpoint(healthcheck));
 
 app.use(express.json());
 
-async function save(user_id, key, data) {
+async function save(user_id, data) {
     console.log(data.task_id);
     await Result.sync();
     await Result.create({ user_id, key, data});
@@ -138,7 +135,7 @@ async function authorize(req, keystore) {
                 res.status(auth.statusCode).end();
                 return;
             }
-            await save(auth.decoded.sub, auth.decoded.key, req.body);
+            await save(auth.decoded.sub, { key: auth.decoded.key, body: req.body});
             res.end();
         } catch (err) {
             console.error(err);
