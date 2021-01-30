@@ -25,6 +25,11 @@ const Result = sequelize.define('Result', {
       type: DataTypes.STRING,
       allowNull: false
     },
+    key: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+  
     data: {
       type: DataTypes.JSON,
       allowNull: false
