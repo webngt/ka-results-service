@@ -70,10 +70,10 @@ app.use('/ready', health.ReadinessEndpoint(healthcheck));
 
 app.use(express.json());
 
-async function save(user_id, data) {
+async function save(user_id, key, data) {
     console.log(data.task_id);
     await Result.sync();
-    await Result.create({ user_id, data});
+    await Result.create({ user_id, key, data});
 }
 
 
@@ -133,7 +133,7 @@ async function authorize(req, keystore) {
                 res.status(auth.statusCode).end();
                 return;
             }
-            await save(auth.decoded.sub, req.body);
+            await save(auth.decoded.sub, auth.decoded.key, req.body);
             res.end();
         } catch (err) {
             console.error(err);
